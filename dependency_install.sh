@@ -11,6 +11,8 @@ conda install -y -c conda-forge easydict
 conda install -y -c conda-forge pyyaml
 conda install -y -c conda-forge tabulate
 conda install -y -c conda-forge yacs
+conda install -y -c conda-forge ros-sensor-msgs
+conda install -y -c conda-forge ros-cv-bridge
 pip install opencv-python
 pip install opencv-contrib-python
 pip install Vizer
