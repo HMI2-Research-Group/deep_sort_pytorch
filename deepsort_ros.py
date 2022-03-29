@@ -10,6 +10,7 @@ import sys
 import rospy
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import CameraInfo
 import ros_numpy
 import image_geometry
 
@@ -46,7 +47,15 @@ class ROS_VideoTracker(object):
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
-        # rospy.spin()
+        self.setup_camera()
+
+    def setup_camera(self):
+        self.camera_info = rospy.wait_for_message("/realsense/color/camera_info", CameraInfo)
+        self.camera_model = image_geometry.PinholeCameraModel()
+        self.camera_model.fromCameraInfo(self.camera_info)
+
+    def get_camera_info(self, msg):
+        self.camera_info = msg
 
     def rgb_callback(self, msg):
         self.rgb_stream = self.bridge.imgmsg_to_cv2(msg)
@@ -64,10 +73,10 @@ class ROS_VideoTracker(object):
                 for j in range(y - 3, y + 3):
                     try:
                         if not np.isnan(depth[j, i]):
-                            return depth[j, i]
+                            return x, y, depth[j, i]
                     except:
                         pass
-            return np.nan
+            return np.nan, np.nan, np.nan
 
         # TODO: Initilize this 100 as a parameter
         human_positions = np.zeros((100, 3))
@@ -78,13 +87,13 @@ class ROS_VideoTracker(object):
             ymax = bbox_outputs[i][3]
             human_index = bbox_outputs[i][4]
             mid_x, mid_y = (xmin + xmax) / 2, (ymin + ymax) / 2
-            depth_val = recursive_non_nan_search(ori_depth, int(mid_x), int(mid_y))
+            person_x, persdon_y, depth_val = recursive_non_nan_search(ori_depth, int(mid_x), int(mid_y))
             if not np.isnan(depth_val):
-                human_positions[int(human_index)] = (
-                    int(mid_x),
-                    int(mid_y),
-                    depth_val,
-                )
+                # Deproject the point from camera to world
+                # person_x, persdon_y = 319, 228
+                point_3d = self.camera_model.projectPixelTo3dRay((person_x, persdon_y))
+                person_3d_point = depth_val * np.array(point_3d)
+                human_positions[int(human_index)] = person_3d_point
         return human_positions
 
     def run(self):
