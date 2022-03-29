@@ -11,6 +11,7 @@ import rospy
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
 import ros_numpy
+import image_geometry
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "thirdparty/fast-reid"))
 
@@ -99,6 +100,7 @@ class ROS_VideoTracker(object):
                 ori_im = self.rgb_stream
                 ori_depth = self.depth_stream
                 point_stream = self.point_stream
+                data = ros_numpy.point_cloud2.pointcloud2_to_xyz_array(point_stream)
                 im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
 
                 # do detection

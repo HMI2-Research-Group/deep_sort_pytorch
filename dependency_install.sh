@@ -29,5 +29,11 @@ git clone git@github.com:eric-wieser/ros_numpy.git
 cd ros_numpy
 git checkout tags/0.0.4
 python setup.py install
+cd /tmp
+# The HASH of the last commit: c791220cefd0abf02c6719e2ce0fea465857a88e
+git clone git@github.com:ros-perception/vision_opencv.git
+cd vision_opencv
+cd image_geometry
+python setup.py install
 
 
