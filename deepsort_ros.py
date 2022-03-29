@@ -52,14 +52,15 @@ class ROS_VideoTracker(object):
 
     def get_depth_from_pixels(self, ori_depth, bbox_outputs):
         def recursive_non_nan_search(depth, x, y):
-            # Recursively search for non-nan values around the point (x, y)
-            if np.isnan(depth[y, x]):
-                if x > 0:
-                    return recursive_non_nan_search(depth, x - 1, y)
-                elif y > 0:
-                    return recursive_non_nan_search(depth, x, y - 1)
-            else:
-                return depth[y, x]
+            # TODO: Recursively search for non-nan values around the point (x, y), not just 2 layer for loop
+            for i in range(x - 3, x + 3):
+                for j in range(y - 3, y + 3):
+                    try:
+                        if not np.isnan(depth[j, i]):
+                            return depth[j, i]
+                    except:
+                        pass
+            return np.nan
 
         # TODO: Initilize this 100 as a parameter
         human_positions = np.zeros((100, 3))
@@ -70,11 +71,13 @@ class ROS_VideoTracker(object):
             ymax = bbox_outputs[i][3]
             human_index = bbox_outputs[i][4]
             mid_x, mid_y = (xmin + xmax) / 2, (ymin + ymax) / 2
-            human_positions[int(human_index)] = (
-                int(mid_x),
-                int(mid_y),
-                recursive_non_nan_search(ori_depth, int(mid_x), int(mid_y)),
-            )
+            depth_val = recursive_non_nan_search(ori_depth, int(mid_x), int(mid_y))
+            if not np.isnan(depth_val):
+                human_positions[int(human_index)] = (
+                    int(mid_x),
+                    int(mid_y),
+                    depth_val,
+                )
         return human_positions
 
     def run(self):
