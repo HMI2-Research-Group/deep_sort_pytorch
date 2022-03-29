@@ -12,7 +12,9 @@ conda install -y -c conda-forge pyyaml
 conda install -y -c conda-forge tabulate
 conda install -y -c conda-forge yacs
 conda install -y -c conda-forge ros-sensor-msgs
+conda install -c conda-forge ros-nav-msgs
 conda install -y -c conda-forge ros-cv-bridge
+conda install -c robostack ros-noetic-ros-numpy
 pip install opencv-python
 pip install opencv-contrib-python
 pip install Vizer
@@ -22,5 +24,10 @@ pip install gdown
 pip install termcolor
 pip install openmim
 mim install mmdet
+cd /tmp
+git clone git@github.com:eric-wieser/ros_numpy.git
+cd ros_numpy
+git checkout tags/0.0.4
+python setup.py install
 
 

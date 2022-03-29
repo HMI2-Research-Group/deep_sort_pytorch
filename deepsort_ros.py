@@ -9,6 +9,8 @@ import numpy as np
 import sys
 import rospy
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import PointCloud2
+import ros_numpy
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "thirdparty/fast-reid"))
 
@@ -27,7 +29,7 @@ def disp_image(image):
 
 
 class ROS_VideoTracker(object):
-    def __init__(self, cfg, args, rgb_stream, depth_stream):
+    def __init__(self, cfg, args, rgb_stream, depth_stream, point_stream):
         use_cuda = args.use_cuda and torch.cuda.is_available()
         self.cfg = cfg
         self.rgb_stream = None
@@ -39,6 +41,7 @@ class ROS_VideoTracker(object):
         rospy.init_node("ros_video_tracker", anonymous=True, disable_rostime=True)
         rospy.Subscriber(rgb_stream, Image, self.rgb_callback)
         rospy.Subscriber(depth_stream, Image, self.depth_callback)
+        rospy.Subscriber(point_stream, PointCloud2, self.poincloud_callback)
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
@@ -49,6 +52,9 @@ class ROS_VideoTracker(object):
 
     def depth_callback(self, msg):
         self.depth_stream = self.bridge.imgmsg_to_cv2(msg)
+
+    def poincloud_callback(self, msg):
+        self.point_stream = msg
 
     def get_depth_from_pixels(self, ori_depth, bbox_outputs):
         def recursive_non_nan_search(depth, x, y):
@@ -92,6 +98,7 @@ class ROS_VideoTracker(object):
                 start = time.time()
                 ori_im = self.rgb_stream
                 ori_depth = self.depth_stream
+                point_stream = self.point_stream
                 im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
 
                 # do detection
@@ -181,5 +188,7 @@ if __name__ == "__main__":
 
     # with VideoTracker(cfg, args, video_path=args.VIDEO_PATH) as vdo_trk:
     #     vdo_trk.run()
-    ros_vid_tracker = ROS_VideoTracker(cfg, args, "/realsense/color/image_raw", "/realsense/depth/image_rect_raw")
+    ros_vid_tracker = ROS_VideoTracker(
+        cfg, args, "/realsense/color/image_raw", "/realsense/depth/image_rect_raw", "/realsense/depth/color/points"
+    )
     ros_vid_tracker.run()
