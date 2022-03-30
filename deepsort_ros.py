@@ -11,8 +11,8 @@ import rospy
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import CameraInfo
-import ros_numpy
 import image_geometry
+from geometry_msgs.msg import PointStamped
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "thirdparty/fast-reid"))
 
@@ -28,6 +28,22 @@ from utils.io import write_results
 def disp_image(image):
     cv2.imshow("debug", image)
     cv2.waitKey(0)
+
+
+def convert_point_to_odom_frame(point, point_time, tf_listener):
+    # Convert point from camera frame to odom frame
+    x, y, z = point[0], point[1], point[2]
+    camera_tf = ""
+    odom_tf = ""
+    x, y, z = point
+    pointstamp = PointStamped()
+    pointstamp.header.frame_id = camera_tf
+    pointstamp.header.stamp = point_time
+    pointstamp.point.x = x
+    pointstamp.point.y = y
+    pointstamp.point.z = z
+    transformed_point = tf_listener.transformPoint(odom_tf, pointstamp)
+    return transformed_point.point.x, transformed_point.point.y, transformed_point.point.z
 
 
 class ROS_VideoTracker(object):
@@ -47,6 +63,7 @@ class ROS_VideoTracker(object):
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
+        self.tf_listener = tf.TransformListener()
         self.setup_camera()
 
     def setup_camera(self):
@@ -108,8 +125,7 @@ class ROS_VideoTracker(object):
                 start = time.time()
                 ori_im = self.rgb_stream
                 ori_depth = self.depth_stream
-                point_stream = self.point_stream
-                data = ros_numpy.point_cloud2.pointcloud2_to_xyz_array(point_stream)
+                time_stamp = rospy.Time.now()
                 im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
 
                 # do detection
@@ -138,6 +154,15 @@ class ROS_VideoTracker(object):
 
                     results.append((idx_frame - 1, bbox_tlwh, identities))
                     all_pedestrian_depth = self.get_depth_from_pixels(ori_depth, outputs)
+                    all_pedestrian_depth = np.array(
+                        [
+                            convert_point_to_odom_frame(
+                                x,
+                                time_stamp,
+                            )
+                            for x in all_pedestrian_depth
+                        ]
+                    )
 
                 end = time.time()
 
