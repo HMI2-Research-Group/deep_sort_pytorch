@@ -9,13 +9,13 @@ import numpy as np
 import sys
 import rospy
 from sensor_msgs.msg import Image
-from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import CameraInfo
 import image_geometry
 from geometry_msgs.msg import PointStamped
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "thirdparty/fast-reid"))
-
+sys.path.append("/tmp/catkin_ws/devel/lib/python3/dist-packages")
+import tf
 
 from detector import build_detector
 from deep_sort import build_tracker
@@ -59,7 +59,6 @@ class ROS_VideoTracker(object):
         rospy.init_node("ros_video_tracker", anonymous=True, disable_rostime=True)
         rospy.Subscriber(rgb_stream, Image, self.rgb_callback)
         rospy.Subscriber(depth_stream, Image, self.depth_callback)
-        rospy.Subscriber(point_stream, PointCloud2, self.poincloud_callback)
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
@@ -79,9 +78,6 @@ class ROS_VideoTracker(object):
 
     def depth_callback(self, msg):
         self.depth_stream = self.bridge.imgmsg_to_cv2(msg)
-
-    def poincloud_callback(self, msg):
-        self.point_stream = msg
 
     def get_depth_from_pixels(self, ori_depth, bbox_outputs):
         def recursive_non_nan_search(depth, x, y):
@@ -155,13 +151,7 @@ class ROS_VideoTracker(object):
                     results.append((idx_frame - 1, bbox_tlwh, identities))
                     all_pedestrian_depth = self.get_depth_from_pixels(ori_depth, outputs)
                     all_pedestrian_depth = np.array(
-                        [
-                            convert_point_to_odom_frame(
-                                x,
-                                time_stamp,
-                            )
-                            for x in all_pedestrian_depth
-                        ]
+                        [convert_point_to_odom_frame(x, time_stamp, self.tf_listener) for x in all_pedestrian_depth]
                     )
 
                 end = time.time()
