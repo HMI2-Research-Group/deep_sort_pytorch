@@ -10,6 +10,6 @@ git clone -b melodic-devel git@github.com:ros/geometry.git
 cd ..
 catkin_make --cmake-args \
             -DCMAKE_BUILD_TYPE=Release \
-            -DPYTHON_EXECUTABLE=/home/student/anaconda3/envs/deepsort/bin/python \
-            -DPYTHON_INCLUDE_DIR=/home/student/anaconda3/envs/deepsort/include/python3.7m \
-            -DPYTHON_LIBRARY=/home/student/anaconda3/envs/deepsort/lib/libpython3.7m.so
+            -DPYTHON_EXECUTABLE=$HOME/anaconda3/envs/deepsort/bin/python \
+            -DPYTHON_INCLUDE_DIR=$HOME/anaconda3/envs/deepsort/include/python3.7m \
+            -DPYTHON_LIBRARY=$HOME/anaconda3/envs/deepsort/lib/libpython3.7m.so
