@@ -33,6 +33,8 @@ def disp_image(image):
 def convert_point_to_odom_frame(point, point_time, tf_listener):
     # Convert point from camera frame to odom frame
     x, y, z = point[0], point[1], point[2]
+    if x == 0 and y == 0 and z == 0:
+        return 0, 0, 0
     camera_tf = ""
     odom_tf = ""
     x, y, z = point
