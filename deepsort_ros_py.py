@@ -1,3 +1,4 @@
+#!/home/student/anaconda3/envs/deepsort/bin/python
 import os
 import cv2
 from cv_bridge import CvBridge
@@ -11,11 +12,14 @@ import rospy
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 import image_geometry
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import Pose, PoseArray
+from std_msgs.msg import Header
+
+# import pdb
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "thirdparty/fast-reid"))
-sys.path.append("/tmp/catkin_ws/devel/lib/python3/dist-packages")
-import tf
+# sys.path.append("/tmp/catkin_ws/devel/lib/python3/dist-packages")
+# import tf
 
 from detector import build_detector
 from deep_sort import build_tracker
@@ -24,28 +28,28 @@ from utils.parser import get_config
 from utils.log import get_logger
 from utils.io import write_results
 
+print(sys.path)
+# pdb.set_trace()
+rospy.init_node("deepsort_ros", anonymous=True)
+
 
 def disp_image(image):
     cv2.imshow("debug", image)
     cv2.waitKey(0)
 
 
-def convert_point_to_odom_frame(point, point_time, tf_listener):
+def convert_point_to_odom_frame(point):
     # Convert point from camera frame to odom frame
     x, y, z = point[0], point[1], point[2]
-    if x == 0 and y == 0 and z == 0:
-        return 0, 0, 0
-    camera_tf = ""
-    odom_tf = ""
-    x, y, z = point
-    pointstamp = PointStamped()
-    pointstamp.header.frame_id = camera_tf
-    pointstamp.header.stamp = point_time
-    pointstamp.point.x = x
-    pointstamp.point.y = y
-    pointstamp.point.z = z
-    transformed_point = tf_listener.transformPoint(odom_tf, pointstamp)
-    return transformed_point.point.x, transformed_point.point.y, transformed_point.point.z
+    pose = Pose()
+    pose.position.x = x
+    pose.position.y = y
+    pose.position.z = z
+    pose.orientation.x = 0
+    pose.orientation.y = 0
+    pose.orientation.z = 0
+    pose.orientation.w = 1
+    return pose
 
 
 class ROS_VideoTracker(object):
@@ -58,14 +62,13 @@ class ROS_VideoTracker(object):
         self.logger = get_logger("root")
         self.bridge = CvBridge()
         self.logger.info("Initializing ROS Video Tracker")
-        rospy.init_node("ros_video_tracker", anonymous=True, disable_rostime=True)
         rospy.Subscriber(rgb_stream, Image, self.rgb_callback)
         rospy.Subscriber(depth_stream, Image, self.depth_callback)
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
-        self.tf_listener = tf.TransformListener()
         self.setup_camera()
+        self.publish_pose_array = rospy.Publisher("/pedestrian_pose_array", PoseArray, queue_size=1)
 
     def setup_camera(self):
         self.camera_info = rospy.wait_for_message("/realsense/color/camera_info", CameraInfo)
@@ -94,7 +97,7 @@ class ROS_VideoTracker(object):
             return np.nan, np.nan, np.nan
 
         # TODO: Initilize this 100 as a parameter
-        human_positions = np.zeros((100, 3))
+        human_positions = np.zeros((101, 3))
         for i in range(len(bbox_outputs)):
             xmin = bbox_outputs[i][0]
             ymin = bbox_outputs[i][1]
@@ -105,7 +108,7 @@ class ROS_VideoTracker(object):
             person_x, persdon_y, depth_val = recursive_non_nan_search(ori_depth, int(mid_x), int(mid_y))
             if not np.isnan(depth_val):
                 # Deproject the point from camera to world
-                # person_x, persdon_y = 319, 228
+                # person_x, persdon_y = 325, 225
                 point_3d = self.camera_model.projectPixelTo3dRay((person_x, persdon_y))
                 person_3d_point = depth_val * np.array(point_3d)
                 human_positions[int(human_index)] = person_3d_point
@@ -146,15 +149,12 @@ class ROS_VideoTracker(object):
                     bbox_xyxy = outputs[:, :4]
                     identities = outputs[:, -1]
                     ori_im = draw_boxes(ori_im, bbox_xyxy, identities)
-
                     for bb_xyxy in bbox_xyxy:
                         bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
-
                     results.append((idx_frame - 1, bbox_tlwh, identities))
                     all_pedestrian_depth = self.get_depth_from_pixels(ori_depth, outputs)
-                    all_pedestrian_depth = np.array(
-                        [convert_point_to_odom_frame(x, time_stamp, self.tf_listener) for x in all_pedestrian_depth]
-                    )
+                    all_pedestrian = [convert_point_to_odom_frame(x) for x in all_pedestrian_depth]
+                    self.publish_pose_array.publish(PoseArray(header=Header(stamp=time_stamp), poses=all_pedestrian))
 
                 end = time.time()
 
