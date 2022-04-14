@@ -38,7 +38,7 @@ def disp_image(image):
     cv2.waitKey(0)
 
 
-def convert_point_to_odom_frame(point):
+def convert_point_to_pose(point):
     # Convert point from camera frame to odom frame
     x, y, z = point[0], point[1], point[2]
     pose = Pose()
@@ -143,6 +143,8 @@ class ROS_VideoTracker(object):
                 # do tracking
                 outputs = self.deepsort.update(bbox_xywh, cls_conf, im)
 
+                all_pedestrian_depth = self.get_depth_from_pixels(ori_depth, [])
+                all_pedestrian = [convert_point_to_pose(x) for x in all_pedestrian_depth]
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     bbox_tlwh = []
@@ -153,8 +155,8 @@ class ROS_VideoTracker(object):
                         bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
                     results.append((idx_frame - 1, bbox_tlwh, identities))
                     all_pedestrian_depth = self.get_depth_from_pixels(ori_depth, outputs)
-                    all_pedestrian = [convert_point_to_odom_frame(x) for x in all_pedestrian_depth]
-                    self.publish_pose_array.publish(PoseArray(header=Header(stamp=time_stamp), poses=all_pedestrian))
+                    all_pedestrian = [convert_point_to_pose(x) for x in all_pedestrian_depth]
+                self.publish_pose_array.publish(PoseArray(header=Header(stamp=time_stamp), poses=all_pedestrian))
 
                 end = time.time()
 
