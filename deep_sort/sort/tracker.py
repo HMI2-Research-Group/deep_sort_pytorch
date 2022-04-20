@@ -130,5 +130,5 @@ class Tracker:
         self.tracks.append(Track(mean, covariance, self._next_id, self.n_init, self.max_age, detection.feature))
         self._next_id += 1
         # TODO: Comeup with a better way to reset the next tracker id
-        if self._next_id > 100:
+        if self._next_id > 9:
             self._next_id = 0

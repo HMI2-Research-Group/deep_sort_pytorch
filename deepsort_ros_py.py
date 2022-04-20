@@ -97,7 +97,7 @@ class ROS_VideoTracker(object):
             return np.nan, np.nan, np.nan
 
         # TODO: Initilize this 100 as a parameter
-        human_positions = np.zeros((101, 3))
+        human_positions = np.zeros((10, 3))
         for i in range(len(bbox_outputs)):
             xmin = bbox_outputs[i][0]
             ymin = bbox_outputs[i][1]
